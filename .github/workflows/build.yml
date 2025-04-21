@@ -1,0 +1,76 @@
+name: Build BPB-Terminal-Wizard
+
+env:
+  RELEASE_VERSION: v1.0
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.1"
+
+      - name: List repository contents
+        run: |
+          pwd
+          ls -la
+          ls -la src/
+
+      - name: Verify source files
+        run: |
+          if [ ! -f src/main.go ]; then
+            echo "Error: src/main.go not found"
+            exit 1
+          fi
+
+      - name: Build for Linux and macOS
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Verify built files
+        run: |
+          ls -l bin/
+          if [ -z "$(ls -A bin/)" ]; then
+            echo "Error: No files found in bin/"
+            exit 1
+          fi
+
+      - name: Upload built executables to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BPB-Terminal-Wizard
+          path: bin/
+          if-no-files-found: error
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.RELEASE_VERSION }}
+          release_name: Release ${{ env.RELEASE_VERSION }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: bin/*
+          tag: ${{ env.RELEASE_VERSION }}
+          overwrite: true
+          file_glob: true
