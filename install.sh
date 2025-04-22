@@ -89,7 +89,7 @@ else
         fi
         mkdir -p ~/.bpb-terminal-wizard
         cd ~/.bpb-terminal-wizard
-        curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.0/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard
+        curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard
         chmod +x BPB-Terminal-Wizard
         ./BPB-Terminal-Wizard
     else
