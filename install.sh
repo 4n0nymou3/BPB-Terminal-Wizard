@@ -40,9 +40,14 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         if [ -d /usr/lib/node_modules/wrangler ]; then
             chmod -R u+w /usr/lib/node_modules/wrangler
             rm -rf /usr/lib/node_modules/wrangler
+            sleep 1
+            if [ -d /usr/lib/node_modules/wrangler ]; then
+                echo 'Failed to remove wrangler directory, please check permissions'
+                exit 1
+            fi
         fi
         for attempt in {1..3}; do
-            npm install -g wrangler@4.12.0 && break
+            npm install -g --no-cache wrangler@4.12.0 && break
             echo 'Retrying npm install (attempt \$attempt)...'
             npm cache clean --force
             sleep 5
@@ -76,9 +81,14 @@ else
         if [ -d /usr/lib/node_modules/wrangler ]; then
             chmod -R u+w /usr/lib/node_modules/wrangler
             rm -rf /usr/lib/node_modules/wrangler
+            sleep 1
+            if [ -d /usr/lib/node_modules/wrangler ]; then
+                echo 'Failed to remove wrangler directory, please check permissions'
+                exit 1
+            fi
         fi
         for attempt in {1..3}; do
-            npm install -g wrangler@4.12.0 && break
+            npm install -g --no-cache wrangler@4.12.0 && break
             echo "Retrying npm install (attempt $attempt)..."
             npm cache clean --force
             sleep 5
