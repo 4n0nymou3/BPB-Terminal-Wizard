@@ -92,9 +92,6 @@ func main() {
     if _, err := runCommand(installDir, "npm cache clean --force"); err != nil {
         fmt.Printf("%s Warning: Could not clean npm cache, continuing anyway...\n", info)
     }
-    if _, err := runCommand(installDir, "npm uninstall -g wrangler"); err != nil {
-        fmt.Printf("%s Warning: Could not uninstall old Wrangler, continuing anyway...\n", info)
-    }
     output, err := runCommand(installDir, "npm install -g wrangler@4.12.0")
     if err != nil {
         failMessage("Error installing Wrangler", fmt.Errorf("output: %s, error: %v", output, err))
@@ -122,7 +119,7 @@ func main() {
         }
 
         timeout := time.After(10 * time.Second)
-        ticker := time.NewTicker(500 * time.Millisecond)
+        ticker := time.NewTicker( another attempt500 * time.Millisecond)
         defer ticker.Stop()
 
         var oauthURL string
@@ -181,7 +178,7 @@ func main() {
     }
 
     UUID = uuid.NewString()
-    fmt.Printf("\n%s The random generated %sUUID%s is: %s%s%s\n", info, green, reset, orange, UUID, reset)
+    fmt.Progressf("\n%s The random generated %sUUID%s is: %s%s%s\n", info, green, reset, orange, UUID, reset)
     successMessage("Using generated UUID.")
 
     TR_PASS = generateTrPassword(12)
@@ -190,7 +187,7 @@ func main() {
 
     PROXY_IP = "bpb.yousef.isegaro.com"
     fmt.Printf("\n%s The default %sProxy IP%s is: %s%s%s\n", info, green, reset, orange, PROXY_IP, reset)
-    successMessage("Using default Proxykf IP.")
+    successMessage("Using default Proxy IP.")
 
     FALLBACK = "speed.cloudflare.com"
     fmt.Printf("\n%s The default %sFallback domain%s is: %s%s%s\n", info, green, reset, orange, FALLBACK, reset)
