@@ -37,15 +37,24 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         apt install -y nodejs
         npm install -g npm@latest
         npm cache clean --force
+        echo 'Killing any active npm processes...'
+        pkill -f npm || true
         if [ -d /usr/lib/node_modules/wrangler ]; then
+            echo 'Removing existing wrangler directory...'
             chmod -R u+w /usr/lib/node_modules/wrangler
-            rm -rf /usr/lib/node_modules/wrangler
-            sleep 1
+            rm -rf /usr/lib/node_modules/wrangler 2> /tmp/wrangler_rm_error.log
+            if [ \$? -ne 0 ]; then
+                echo 'Failed to remove wrangler directory. Check /tmp/wrangler_rm_error.log for details'
+                cat /tmp/wrangler_rm_error.log
+                exit 1
+            fi
+            sleep 2
             if [ -d /usr/lib/node_modules/wrangler ]; then
-                echo 'Failed to remove wrangler directory, please check permissions'
+                echo 'Wrangler directory still exists after removal attempt'
                 exit 1
             fi
         fi
+        echo 'Installing Wrangler (version 4.12.0)...'
         for attempt in {1..3}; do
             npm install -g --no-cache wrangler@4.12.0 && break
             echo 'Retrying npm install (attempt \$attempt)...'
@@ -56,9 +65,14 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
             echo 'Failed to install Wrangler 4.12.0. Check logs at /root/.npm/_logs/*.log'
             exit 1
         fi
+        echo 'Setting up BPB Terminal Wizard (release v1.1)...'
         mkdir -p /root/.bpb-terminal-wizard
         cd /root/.bpb-terminal-wizard
         curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard
+        if [ \$? -ne 0 ]; then
+            echo 'Failed to download BPB-Terminal-Wizard v1.1'
+            exit 1
+        fi
         chmod +x BPB-Terminal-Wizard
         ./BPB-Terminal-Wizard
     "
@@ -78,15 +92,24 @@ else
         apt install -y nodejs
         npm install -g npm@latest
         npm cache clean --force
+        echo 'Killing any active npm processes...'
+        pkill -f npm || true
         if [ -d /usr/lib/node_modules/wrangler ]; then
+            echo 'Removing existing wrangler directory...'
             chmod -R u+w /usr/lib/node_modules/wrangler
-            rm -rf /usr/lib/node_modules/wrangler
-            sleep 1
+            rm -rf /usr/lib/node_modules/wrangler 2> /tmp/wrangler_rm_error.log
+            if [ $? -ne 0 ]; then
+                echo 'Failed to remove wrangler directory. Check /tmp/wrangler_rm_error.log for details'
+                cat /tmp/wrangler_rm_error.log
+                exit 1
+            fi
+            sleep 2
             if [ -d /usr/lib/node_modules/wrangler ]; then
-                echo 'Failed to remove wrangler directory, please check permissions'
+                echo 'Wrangler directory still exists after removal attempt'
                 exit 1
             fi
         fi
+        echo 'Installing Wrangler (version 4.12.0)...'
         for attempt in {1..3}; do
             npm install -g --no-cache wrangler@4.12.0 && break
             echo "Retrying npm install (attempt $attempt)..."
@@ -97,9 +120,14 @@ else
             echo "Failed to install Wrangler 4.12.0. Check logs at /root/.npm/_logs/*.log"
             exit 1
         fi
+        echo 'Setting up BPB Terminal Wizard (release v1.1)...'
         mkdir -p ~/.bpb-terminal-wizard
         cd ~/.bpb-terminal-wizard
         curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard
+        if [ $? -ne 0 ]; then
+            echo 'Failed to download BPB-Terminal-Wizard v1.1'
+            exit 1
+        fi
         chmod +x BPB-Terminal-Wizard
         ./BPB-Terminal-Wizard
     else
@@ -115,6 +143,7 @@ else
           arm64|aarch64) ARCH_TYPE="arm64" ;;
           *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
         esac
+        echo 'Setting up BPB Terminal Wizard (release v1.1)...'
         RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-${OS_TYPE}-${ARCH_TYPE}"
         BINARY_NAME="BPB-Terminal-Wizard-${OS_TYPE}-${ARCH_TYPE}"
         echo "Downloading $BINARY_NAME..."
