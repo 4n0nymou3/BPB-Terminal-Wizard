@@ -15,6 +15,7 @@ echo ""
 
 if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
     echo "Detected Termux environment. Setting up Ubuntu..."
+    pkg update -y && pkg upgrade -y
     pkg install termux-tools -y
     if ! command -v proot-distro >/dev/null 2>&1; then
         pkg install proot-distro -y
@@ -25,18 +26,31 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
     proot-distro login ubuntu -- bash -c "
         apt update
         apt install -y curl wget bash
+        if command -v node >/dev/null 2>&1; then
+            NODE_VERSION=\$(node -v)
+            if [[ ! \$NODE_VERSION =~ ^v1[8-9]|^v2[0-9] ]]; then
+                echo 'Removing incompatible Node.js version...'
+                apt remove -y nodejs
+            fi
+        fi
         curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
         apt install -y nodejs
         npm install -g npm@latest
         npm cache clean --force
         if [ -d /usr/lib/node_modules/wrangler ]; then
+            chmod -R u+w /usr/lib/node_modules/wrangler
             rm -rf /usr/lib/node_modules/wrangler
         fi
         for attempt in {1..3}; do
             npm install -g wrangler@4.12.0 && break
-            echo 'Retrying npm install (attempt $attempt)...'
+            echo 'Retrying npm install (attempt \$attempt)...'
+            npm cache clean --force
             sleep 5
         done
+        if ! npm list -g wrangler | grep -q 'wrangler@4.12.0'; then
+            echo 'Failed to install Wrangler 4.12.0. Check logs at /root/.npm/_logs/*.log'
+            exit 1
+        fi
         mkdir -p /root/.bpb-terminal-wizard
         cd /root/.bpb-terminal-wizard
         curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.0/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard
@@ -48,18 +62,31 @@ else
         echo "Detected Ubuntu environment. Setting up dependencies..."
         apt update
         apt install -y curl wget bash
+        if command -v node >/dev/null 2>&1; then
+            NODE_VERSION=$(node -v)
+            if [[ ! $NODE_VERSION =~ ^v1[8-9]|^v2[0-9] ]]; then
+                echo 'Removing incompatible Node.js version...'
+                apt remove -y nodejs
+            fi
+        fi
         curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
         apt install -y nodejs
         npm install -g npm@latest
         npm cache clean --force
         if [ -d /usr/lib/node_modules/wrangler ]; then
+            chmod -R u+w /usr/lib/node_modules/wrangler
             rm -rf /usr/lib/node_modules/wrangler
         fi
         for attempt in {1..3}; do
             npm install -g wrangler@4.12.0 && break
             echo "Retrying npm install (attempt $attempt)..."
+            npm cache clean --force
             sleep 5
         done
+        if ! npm list -g wrangler | grep -q 'wrangler@4.12.0'; then
+            echo "Failed to install Wrangler 4.12.0. Check logs at /root/.npm/_logs/*.log"
+            exit 1
+        fi
         mkdir -p ~/.bpb-terminal-wizard
         cd ~/.bpb-terminal-wizard
         curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.0/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard
