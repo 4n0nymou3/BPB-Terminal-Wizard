@@ -53,7 +53,7 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         fi
         mkdir -p /root/.bpb-terminal-wizard
         cd /root/.bpb-terminal-wizard
-        curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.0/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard
+        curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard
         chmod +x BPB-Terminal-Wizard
         ./BPB-Terminal-Wizard
     "
@@ -105,7 +105,7 @@ else
           arm64|aarch64) ARCH_TYPE="arm64" ;;
           *)       echo "Unsupported architecture: $ARCH"; exit 1 ;;
         esac
-        RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.0/BPB-Terminal-Wizard-${OS_TYPE}-${ARCH_TYPE}"
+        RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-${OS_TYPE}-${ARCH_TYPE}"
         BINARY_NAME="BPB-Terminal-Wizard-${OS_TYPE}-${ARCH_TYPE}"
         echo "Downloading $BINARY_NAME..."
         curl -L --fail "$RELEASE_URL" -o "$BINARY_NAME" || { echo "Error downloading $BINARY_NAME"; exit 1; }
