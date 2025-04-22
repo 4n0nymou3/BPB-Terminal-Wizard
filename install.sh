@@ -29,6 +29,9 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         apt install -y nodejs
         npm install -g npm@latest
         npm cache clean --force
+        if [ -d /usr/lib/node_modules/wrangler ]; then
+            rm -rf /usr/lib/node_modules/wrangler
+        fi
         for attempt in {1..3}; do
             npm install -g wrangler@4.12.0 && break
             echo 'Retrying npm install (attempt $attempt)...'
@@ -41,7 +44,7 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         ./BPB-Terminal-Wizard
     "
 else
-    if [ -f c "/etc/os-release" ] && grep -q "Ubuntu" /etc/os-release; then
+    if [ -f "/etc/os-release" ] && grep -q "Ubuntu" /etc/os-release; then
         echo "Detected Ubuntu environment. Setting up dependencies..."
         apt update
         apt install -y curl wget bash
@@ -49,6 +52,9 @@ else
         apt install -y nodejs
         npm install -g npm@latest
         npm cache clean --force
+        if [ -d /usr/lib/node_modules/wrangler ]; then
+            rm -rf /usr/lib/node_modules/wrangler
+        fi
         for attempt in {1..3}; do
             npm install -g wrangler@4.12.0 && break
             echo "Retrying npm install (attempt $attempt)..."
