@@ -1,7 +1,7 @@
 name: Build BPB-Terminal-Wizard
 
 env:
-  RELEASE_VERSION: v1.0
+  RELEASE_VERSION: v1.1
 
 permissions:
   contents: write
@@ -64,7 +64,7 @@ jobs:
           tag_name: ${{ env.RELEASE_VERSION }}
           release_name: Release ${{ env.RELEASE_VERSION }}
           draft: false
-          prerelease: false
+          prerelease: true
 
       - name: Upload Release Assets
         uses: svenstaro/upload-release-action@v2
