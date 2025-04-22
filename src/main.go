@@ -119,7 +119,7 @@ func main() {
         }
 
         timeout := time.After(10 * time.Second)
-        ticker := time.NewTicker( another attempt500 * time.Millisecond)
+        ticker := time.NewTicker(500 * time.Millisecond)
         defer ticker.Stop()
 
         var oauthURL string
@@ -178,7 +178,7 @@ func main() {
     }
 
     UUID = uuid.NewString()
-    fmt.Progressf("\n%s The random generated %sUUID%s is: %s%s%s\n", info, green, reset, orange, UUID, reset)
+    fmt.Printf("\n%s The random generated %sUUID%s is: %s%s%s\n", info, green, reset, orange, UUID, reset)
     successMessage("Using generated UUID.")
 
     TR_PASS = generateTrPassword(12)
