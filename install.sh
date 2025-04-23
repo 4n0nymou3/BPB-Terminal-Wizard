@@ -1,27 +1,23 @@
 #!/bin/bash
 
-# --- Colors ---
 RESET='\033[0m'
 BOLD='\033[1m'
-# Standard Colors
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
-# Bright/Bold
+RED='\033[0;31m'
 BOLD_BLUE='\033[1;34m'
 BOLD_GREEN='\033[1;32m'
 
-# --- Banner ---
-echo -e "${BOLD_BLUE}╔══════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD_BLUE}║         ${RESET}${BOLD}BPB Terminal Wizard${RESET}${BOLD_BLUE}           ║${RESET}"
-echo -e "${BOLD_BLUE}║                                          ║${RESET}"
-echo -e "${BOLD_BLUE}║  ${CYAN}A tool to deploy BPB Panel easily${RESET}${BOLD_BLUE}     ║${RESET}"
-echo -e "${BOLD_BLUE}║  ${CYAN}Created by ${RESET}${BOLD_GREEN}Anonymous${RESET}${CYAN} with thanks to ${RESET}${BOLD_GREEN}BPB${RESET}${BOLD_BLUE}  ║${RESET}"
-echo -e "${BOLD_BLUE}╚══════════════════════════════════════════╝${RESET}"
+echo -e "${BOLD_BLUE}╔═══════════════════════════════════════════${RESET}"
+echo -e "${BOLD_BLUE}║ ${RESET}${BOLD}BPB Terminal Wizard${RESET}"
+echo -e "${BOLD_BLUE}║ ${RESET}"
+echo -e "${BOLD_BLUE}║ ${CYAN}A tool to deploy BPB Panel easily${RESET}"
+echo -e "${BOLD_BLUE}║ ${CYAN}Created by ${RESET}${BOLD_GREEN}Anonymous${RESET}${CYAN} with thanks to ${RESET}${BOLD_GREEN}BPB${RESET}"
+echo -e "${BOLD_BLUE}╚═══════════════════════════════════════════${RESET}"
 echo ""
 
-# --- Termux Specific Setup ---
 if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
     echo -e "${YELLOW}ℹ Detected Termux environment. Setting up Ubuntu...${RESET}"
     pkg update -y && pkg upgrade -y
@@ -65,31 +61,29 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         mkdir -p /root/.bpb-terminal-wizard
         cd /root/.bpb-terminal-wizard
         echo -e '${BLUE}❯ Downloading BPB Terminal Wizard...${RESET}'
-        curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard || { echo -e '${RED}✗ Error downloading BPB Terminal Wizard${RESET}'; exit 1; }
+        curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.0/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard || { echo -e '${RED}✗ Error downloading BPB Terminal Wizard${RESET}'; exit 1; }
         chmod +x BPB-Terminal-Wizard
         echo -e '${BLUE}❯ Running BPB Terminal Wizard...${RESET}'
         ./BPB-Terminal-Wizard
     "
-# --- Standard Linux/macOS Setup ---
 else
-    OS=$(uname -s)
-    ARCH=$(uname -m)
+    OS=\$(uname -s)
+    ARCH=\$(uname -m)
     OS_TYPE=""
     ARCH_TYPE=""
 
-    case "$OS" in
+    case "\$OS" in
       Linux*)  OS_TYPE="linux" ;;
       Darwin*) OS_TYPE="darwin" ;;
-      *)       echo -e "${RED}✗ Unsupported OS: $OS${RESET}"; exit 1 ;;
+      *)       echo -e "${RED}✗ Unsupported OS: \$OS${RESET}"; exit 1 ;;
     esac
-    case "$ARCH" in
+    case "\$ARCH" in
       x86_64)  ARCH_TYPE="amd64" ;;
       arm64|aarch64) ARCH_TYPE="arm64" ;;
-      *)       echo -e "${RED}✗ Unsupported architecture: $ARCH${RESET}"; exit 1 ;;
+      *)       echo -e "${RED}✗ Unsupported architecture: \$ARCH${RESET}"; exit 1 ;;
     esac
 
-    # --- Ubuntu Specific Dependency Check ---
-    if [ "$OS_TYPE" == "linux" ] && [ -f "/etc/os-release" ] && grep -q "Ubuntu" /etc/os-release; then
+    if [ "\$OS_TYPE" == "linux" ] && [ -f "/etc/os-release" ] && grep -q "Ubuntu" /etc/os-release; then
         echo -e "${YELLOW}ℹ Detected Ubuntu environment. Setting up dependencies...${RESET}"
         apt update && apt upgrade -y
         apt install -y curl wget bash nodejs npm git
@@ -127,21 +121,20 @@ else
          exit 1
     fi
 
-    # --- Download and Run ---
-    INSTALL_DIR="$HOME/.bpb-terminal-wizard"
+    INSTALL_DIR="\$HOME/.bpb-terminal-wizard"
     BINARY_NAME="BPB-Terminal-Wizard"
-    RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-${OS_TYPE}-${ARCH_TYPE}"
+    RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.0/BPB-Terminal-Wizard-\${OS_TYPE}-\${ARCH_TYPE}"
 
     echo -e "${BLUE}❯ Preparing BPB Terminal Wizard directory...${RESET}"
-    mkdir -p "$INSTALL_DIR"
-    cd "$INSTALL_DIR" || { echo -e "${RED}✗ Could not change to directory $INSTALL_DIR${RESET}"; exit 1; }
+    mkdir -p "\$INSTALL_DIR"
+    cd "\$INSTALL_DIR" || { echo -e "${RED}✗ Could not change to directory \$INSTALL_DIR${RESET}"; exit 1; }
 
-    echo -e "${BLUE}❯ Downloading $BINARY_NAME for ${OS_TYPE}-${ARCH_TYPE}...${RESET}"
-    curl -L --fail "$RELEASE_URL" -o "$BINARY_NAME" || { echo -e "${RED}✗ Error downloading $BINARY_NAME${RESET}"; exit 1; }
-    chmod +x "$BINARY_NAME"
+    echo -e "${BLUE}❯ Downloading \$BINARY_NAME for \${OS_TYPE}-\${ARCH_TYPE}...${RESET}"
+    curl -L --fail "\$RELEASE_URL" -o "\$BINARY_NAME" || { echo -e "${RED}✗ Error downloading \$BINARY_NAME${RESET}"; exit 1; }
+    chmod +x "\$BINARY_NAME"
 
     echo -e "${BLUE}❯ Running BPB Terminal Wizard...${RESET}"
-    ./"$BINARY_NAME"
+    ./"\$BINARY_NAME"
 fi
 
 echo -e "${GREEN}✓ Installation script finished.${RESET}"
