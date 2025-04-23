@@ -34,30 +34,16 @@ var (
     PROXY_IP     string
     FALLBACK     string
     SUB_PATH     string
-    
-    red           = "\033[31m"
-    green         = "\033[32m"
-    yellow        = "\033[33m"
-    blue          = "\033[34m"
-    magenta       = "\033[35m"
-    cyan          = "\033[36m"
-    white         = "\033[37m"
-    brightGreen   = "\033[92m"
-    brightBlue    = "\033[94m"
-    brightCyan    = "\033[96m"
-    orange        = "\033[38;2;255;165;0m"
-    
-    bold          = "\033[1m"
-    dim           = "\033[2m"
-    underline     = "\033[4m"
-    reset         = "\033[0m"
-    
-    title         = bold + brightBlue + "● " + reset
-    info          = bold + brightCyan + "ℹ " + reset
-    warn          = bold + yellow + "⚠ " + reset
-    success       = bold + brightGreen + "✓ " + reset
-    error         = bold + red + "✗ " + reset
-    arrow         = bold + cyan + "→ " + reset
+    red          = "\033[31m"
+    green        = "\033[32m"
+    reset        = "\033[0m"
+    orange       = "\033[38;2;255;165;0m"
+    blue         = "\033[94m"
+    bold         = "\033[1m"
+    title        = bold + blue + "●" + reset
+    info         = bold + "+" + reset
+    successMark  = bold + green + "✓" + reset
+    failMark     = bold + red + "✗" + reset
 )
 
 func main() {
@@ -97,20 +83,19 @@ func main() {
         return
     }
 
-    fmt.Printf("\n%s %s%sInitializing %sBPB Terminal Wizard%s%s...\n", title, dim, cyan, brightBlue, reset, dim)
-    fmt.Printf("╔%s═══════════════════════════════════════════════╗%s\n", dim, reset)
+    fmt.Printf("\n%s Installing %sBPB Terminal Wizard%s...\n", title, blue, reset)
 
     if err := checkNode(); err != nil {
         failMessage("Node.js is not installed or outdated. Please install Node.js 18 or higher.", err)
         return
     }
 
-    fmt.Printf("%s Installing %sWrangler%s...\n", info, cyan, reset)
+    fmt.Printf("%s Installing Wrangler...\n", info)
     if _, err := runCommand(installDir, "npm cache clean --force"); err != nil {
-        fmt.Printf("%s %sWarning:%s Could not clean npm cache, continuing anyway...\n", warn, yellow, reset)
+        fmt.Printf("%s Warning: Could not clean npm cache, continuing anyway...\n", info)
     }
     if _, err := runCommand(installDir, "npm uninstall -g wrangler"); err != nil {
-        fmt.Printf("%s %sWarning:%s Could not uninstall old Wrangler, continuing anyway...\n", warn, yellow, reset)
+        fmt.Printf("%s Warning: Could not uninstall old Wrangler, continuing anyway...\n", info)
     }
     output, err := runCommand(installDir, "npm install -g wrangler@4.12.0")
     if err != nil {
@@ -124,9 +109,8 @@ func main() {
     }
 
     successMessage("BPB Terminal Wizard dependencies are ready!")
-    fmt.Printf("╠%s═══════════════════════════════════════════════╣%s\n", dim, reset)
 
-    fmt.Printf("\n%s %sLogging into %sCloudflare%s...\n", title, white, orange, reset)
+    fmt.Printf("\n%s Login %sCloudflare%s...\n", title, orange, reset)
     for {
         cmd := exec.Command("sh", "-c", "npx wrangler login")
         cmd.Dir = installDir
@@ -154,9 +138,9 @@ func main() {
                 oauthURL, err = extractOAuthURL(stdoutBuf.String())
                 if err == nil {
                     if err := openURL(oauthURL); err != nil {
-                        fmt.Printf("%s %sWarning:%s Could not open browser automatically. Please open this URL in your browser: %s%s%s\n", warn, yellow, reset, underline+blue, oauthURL, reset)
+                        fmt.Printf("%s Warning: Could not open browser automatically. Please open this URL in your browser: %s%s%s\n", info, blue, oauthURL, reset)
                     } else {
-                        fmt.Printf("%s Browser opened with URL: %s%s%s\n", arrow, underline+blue, oauthURL, reset)
+                        fmt.Printf("%s Browser opened with URL: %s%s%s\n", info, blue, oauthURL, reset)
                     }
                     goto FoundURL
                 }
@@ -170,57 +154,55 @@ func main() {
         }
 
         if _, err := runCommand(installDir, "npx wrangler telemetry disable"); err != nil {
-            fmt.Printf("%s %sWarning:%s Could not disable telemetry, continuing anyway...\n", warn, yellow, reset)
+            fmt.Printf("%s Warning: Could not disable telemetry, continuing anyway...\n", info)
         }
 
-        successMessage("Cloudflare login successful!")
+        successMessage("Cloudflare logged in successfully!")
         break
     }
-    fmt.Printf("╠%s═══════════════════════════════════════════════╣%s\n", dim, reset)
 
-    fmt.Printf("\n%s %sConfiguring %sWorker Settings%s...\n", title, white, brightCyan, reset)
+    fmt.Printf("\n%s Get Worker settings...\n", title)
 
-    fmt.Printf("\n%s Using deployment type: %s%s%s\n", arrow, green, map[string]string{"1": "Workers", "2": "Pages"}[deployType], reset)
+    fmt.Printf("\n%s Using deployment type: %s%s%s\n", info, green, map[string]string{"1": "Workers", "2": "Pages"}[deployType], reset)
     if deployType == "2" {
-        fmt.Printf("%s %sWarning:%s With %sPages%s, you cannot modify settings later from Cloudflare dashboard.\n", warn, yellow, reset, green, reset)
-        fmt.Printf("%s %sWarning:%s With %sPages%s, it may take up to 5 minutes to access the panel.\n", warn, yellow, reset, green, reset)
+        fmt.Printf("%s %sWarning%s: With %sPages%s, you cannot modify settings later from Cloudflare dashboard.\n", info, red, reset, green, reset)
+        fmt.Printf("%s %sWarning%s: With %sPages%s, it may take up to 5 minutes to access the panel.\n", info, red, reset, green, reset)
     }
 
     for {
         projectName = generateRandomDomain(32)
-        fmt.Printf("\n%s Generated worker name (%sSubdomain%s): %s%s%s\n", info, green, reset, bold+orange, projectName, reset)
-        successMessage("Using generated worker name")
+        fmt.Printf("\n%s The random generated worker name (%sSubdomain%s) is: %s%s%s\n", info, green, reset, orange, projectName, reset)
+        successMessage("Using generated worker name.")
 
-        fmt.Printf("\n%s %sChecking domain availability%s...\n", title, white, reset)
+        fmt.Printf("\n%s Checking domain availablity...\n", title)
         if resp := isWorkerAvailable(installDir, projectName, deployType); resp {
             continue
         }
-        successMessage("Domain is available!")
+        successMessage("Available!")
         break
     }
 
     UUID = uuid.NewString()
-    fmt.Printf("\n%s Generated %sUUID%s: %s%s%s\n", info, green, reset, bold+orange, UUID, reset)
-    successMessage("Using generated UUID")
+    fmt.Printf("\n%s The random generated %sUUID%s is: %s%s%s\n", info, green, reset, orange, UUID, reset)
+    successMessage("Using generated UUID.")
 
     TR_PASS = generateTrPassword(12)
-    fmt.Printf("\n%s Generated %sTrojan password%s: %s%s%s\n", info, green, reset, bold+orange, TR_PASS, reset)
-    successMessage("Using generated Trojan password")
+    fmt.Printf("\n%s The random generated %sTrojan password%s is: %s%s%s\n", info, green, reset, orange, TR_PASS, reset)
+    successMessage("Using generated Trojan password.")
 
     PROXY_IP = "bpb.yousef.isegaro.com"
-    fmt.Printf("\n%s Default %sProxy IP%s: %s%s%s\n", info, green, reset, bold+orange, PROXY_IP, reset)
-    successMessage("Using default Proxy IP")
+    fmt.Printf("\n%s The default %sProxy IP%s is: %s%s%s\n", info, green, reset, orange, PROXY_IP, reset)
+    successMessage("Using default Proxykf IP.")
 
     FALLBACK = "speed.cloudflare.com"
-    fmt.Printf("\n%s Default %sFallback domain%s: %s%s%s\n", info, green, reset, bold+orange, FALLBACK, reset)
-    successMessage("Using default Fallback domain")
+    fmt.Printf("\n%s The default %sFallback domain%s is: %s%s%s\n", info, green, reset, orange, FALLBACK, reset)
+    successMessage("Using default Fallback domain.")
 
     SUB_PATH = generateSubURIPath(16)
-    fmt.Printf("\n%s Generated %sSubscription path%s: %s%s%s\n", info, green, reset, bold+orange, SUB_PATH, reset)
-    successMessage("Using generated Subscription path")
-    fmt.Printf("╠%s═══════════════════════════════════════════════╣%s\n", dim, reset)
+    fmt.Printf("\n%s The random generated %sSubscription path%s is: %s%s%s\n", info, green, reset, orange, SUB_PATH, reset)
+    successMessage("Using generated Subscription path.")
 
-    fmt.Printf("\n%s %sDownloading %sworker.js%s...\n", title, white, green, reset)
+    fmt.Printf("\n%s Downloading %sworker.js%s...\n", title, green, reset)
     if err := os.Mkdir(srsPath, 0750); err != nil {
         failMessage("Could not create src directory", err)
         return
@@ -239,15 +221,15 @@ func main() {
         break
     }
 
-    fmt.Printf("\n%s %sWarning:%s This program creates a new KV namespace each time it runs. Check your Cloudflare account and delete unused KV namespaces to avoid hitting limits.\n", warn, yellow, reset)
-    fmt.Printf("\n%s %sCreating %sKV namespace%s...\n", title, white, brightCyan, reset)
+    fmt.Printf("\n%s %sWarning%s: This program creates a new KV namespace each time it runs. Check your Cloudflare account and delete unused KV namespaces to avoid hitting limits.\n", info, red, reset)
+    fmt.Printf("\n%s Creating KV namespace...\n", title)
     for attempt := 1; attempt <= 3; attempt++ {
         kvName := fmt.Sprintf("panel_kv_%s", generateRandomString("abcdefghijklmnopqrstuvwxyz0123456789", 8, false))
         output, err := runCommand(installDir, fmt.Sprintf("npx wrangler kv namespace create %s", kvName))
         if err != nil {
             message := fmt.Sprintf("Error creating KV on attempt %d! Output: %s. Check logs at ~/.config/.wrangler/logs/ for details. Ensure Wrangler is version 4.12.0 or higher.", attempt, output)
             if strings.Contains(output, "fetch failed") && attempt < 3 {
-                fmt.Printf("%s Retrying after 5 seconds...\n", warn)
+                fmt.Printf("%s Retrying after 5 seconds...\n", info)
                 time.Sleep(5 * time.Second)
                 continue
             }
@@ -269,19 +251,18 @@ func main() {
         failMessage("Failed to create KV namespace after multiple attempts.", nil)
         return
     }
-    successMessage("KV namespace created successfully!")
+    successMessage("KV created successfully!")
 
-    fmt.Printf("\n%s %sBuilding %spanel configuration%s...\n", title, white, brightCyan, reset)
+    fmt.Printf("\n%s Building panel configuration...\n", title)
     if err := buildWranglerConfig(wranglerConfigPath); err != nil {
         failMessage("Error building Wrangler configuration", err)
         return
     }
     successMessage("Panel configuration built successfully!")
-    fmt.Printf("╠%s═══════════════════════════════════════════════╣%s\n", dim, reset)
 
     var panelURL string
     for {
-        fmt.Printf("\n%s %sDeploying %sBPB Panel%s...\n", title, white, brightBlue, reset)
+        fmt.Printf("\n%s Deploying %sBPB Panel%s...\n", title, blue, reset)
         if deployType == "1" {
             output, err := runCommand(installDir, "npx wrangler deploy ./src/worker.js")
             if err != nil {
@@ -315,9 +296,7 @@ func main() {
         break
     }
 
-    fmt.Printf("╚%s═══════════════════════════════════════════════╝%s\n", dim, reset)
-    fmt.Printf("\n%s %sPanel installed successfully!%s\n", success, bold+green, reset)
-    fmt.Printf("%s You can access it at: %s%s%s\n\n", arrow, underline+blue, panelURL, reset)
+    fmt.Printf("\n%s Panel installed successfully! You can access it at: %s%s%s\n", green, blue, panelURL, reset)
 }
 
 func checkNode() error {
@@ -509,9 +488,9 @@ func failMessage(message string, err error) {
     if err != nil {
         message += ": " + err.Error()
     }
-    fmt.Printf("%s %s%s%s\n", error, bold+red, message, reset)
+    fmt.Printf("%s %s\n", failMark, message)
 }
 
 func successMessage(message string) {
-    fmt.Printf("%s %s\n", success, message)
+    fmt.Printf("%s %s\n", successMark, message)
 }
