@@ -92,6 +92,9 @@ func main() {
     if _, err := runCommand(installDir, "npm cache clean --force"); err != nil {
         fmt.Printf("%s Warning: Could not clean npm cache, continuing anyway...\n", info)
     }
+    if _, err := runCommand(installDir, "npm uninstall -g wrangler"); err != nil {
+        fmt.Printf("%s Warning: Could not uninstall old Wrangler, continuing anyway...\n", info)
+    }
     output, err := runCommand(installDir, "npm install -g wrangler@4.12.0")
     if err != nil {
         failMessage("Error installing Wrangler", fmt.Errorf("output: %s, error: %v", output, err))
@@ -187,7 +190,7 @@ func main() {
 
     PROXY_IP = "bpb.yousef.isegaro.com"
     fmt.Printf("\n%s The default %sProxy IP%s is: %s%s%s\n", info, green, reset, orange, PROXY_IP, reset)
-    successMessage("Using default Proxy IP.")
+    successMessage("Using default Proxykf IP.")
 
     FALLBACK = "speed.cloudflare.com"
     fmt.Printf("\n%s The default %sFallback domain%s is: %s%s%s\n", info, green, reset, orange, FALLBACK, reset)
