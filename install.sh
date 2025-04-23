@@ -61,7 +61,7 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         mkdir -p /root/.bpb-terminal-wizard
         cd /root/.bpb-terminal-wizard
         echo -e '${BLUE}❯ Downloading BPB Terminal Wizard...${RESET}'
-        curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.0/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard || { echo -e '${RED}✗ Error downloading BPB Terminal Wizard${RESET}'; exit 1; }
+        curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard || { echo -e '${RED}✗ Error downloading BPB Terminal Wizard${RESET}'; exit 1; }
         chmod +x BPB-Terminal-Wizard
         echo -e '${BLUE}❯ Running BPB Terminal Wizard...${RESET}'
         ./BPB-Terminal-Wizard
@@ -123,7 +123,7 @@ else
 
     INSTALL_DIR="\$HOME/.bpb-terminal-wizard"
     BINARY_NAME="BPB-Terminal-Wizard"
-    RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.0/BPB-Terminal-Wizard-\${OS_TYPE}-\${ARCH_TYPE}"
+    RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-\${OS_TYPE}-\${ARCH_TYPE}"
 
     echo -e "${BLUE}❯ Preparing BPB Terminal Wizard directory...${RESET}"
     mkdir -p "\$INSTALL_DIR"
