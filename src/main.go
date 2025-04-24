@@ -125,7 +125,7 @@ func main() {
 			continue
 		}
 
-		timeout := time.After(10 * time.Second)
+		timeout := time.After(40 * time.Second)
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
 
