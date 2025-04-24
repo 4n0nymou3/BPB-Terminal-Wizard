@@ -184,7 +184,6 @@ func setupEnvironment() error {
 		fmt.Printf("%s Termux environment detected.\n", infoPrefix)
 	}
 
-	//_ = os.Remove(filepath.Join(installDir, "wrangler.json")) // Keep for potential future use? No, remove.
 	_ = os.Remove(wranglerTOMLPath)
 	_ = os.RemoveAll(srcPath)
 
