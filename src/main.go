@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -70,15 +71,19 @@ func main() {
 	srsPath := filepath.Join(installDir, "src")
 
 	if _, err := os.Stat(wranglerConfigPath); !errors.Is(err, os.ErrNotExist) {
+		fmt.Printf("%s Cleaning up old worker config...\n", infoPrefix)
 		if err := os.Remove(wranglerConfigPath); err != nil {
-			failMessage("Error deleting old worker config.", err)
-			return
+			warnMessage("Error deleting old worker config. Continuing anyway.")
 		}
 	}
 
-	if err := os.RemoveAll(srsPath); err != nil {
-		failMessage("Error deleting old worker.js file.", err)
+	if _, err := os.Stat(srsPath); !errors.Is(err, os.ErrNotExist) {
+		fmt.Printf("%s Cleaning up old worker.js file...\n", infoPrefix)
+		if err := os.RemoveAll(srsPath); err != nil {
+			warnMessage("Error deleting old worker.js directory. Continuing anyway.")
+		}
 	}
+
 
 	if err := os.MkdirAll(installDir, 0750); err != nil {
 		failMessage("Error creating install directory", err)
@@ -87,30 +92,8 @@ func main() {
 
 	fmt.Printf("\n%s Installing %sBPB Terminal Wizard%s...\n", titlePrefix, bold+blue, reset)
 
-	if err := checkNode(); err != nil {
-		failMessage("Node.js is not installed or outdated. Please install Node.js 18 or higher.", err)
-		return
-	}
-
-	fmt.Printf("%s Installing Wrangler...\n", infoPrefix)
-	if _, err := runCommand(installDir, "npm cache clean --force"); err != nil {
-		fmt.Printf("%s Warning: Could not clean npm cache, continuing anyway...\n", warnPrefix)
-	}
-	if _, err := runCommand(installDir, "npm uninstall -g wrangler"); err != nil {
-		fmt.Printf("%s Warning: Could not uninstall old Wrangler, continuing anyway...\n", warnPrefix)
-	}
-	output, err := runCommand(installDir, "npm install -g wrangler@4.12.0")
-	if err != nil {
-		failMessage("Error installing Wrangler", fmt.Errorf("output: %s, error: %v", output, err))
-		return
-	}
-	output, err = runCommand(installDir, "npx wrangler --version")
-	if err != nil || !strings.Contains(output, "4.12.0") {
-		failMessage("Failed to verify Wrangler version 4.12.0", fmt.Errorf("output: %s, error: %v", output, err))
-		return
-	}
-
 	successMessage("BPB Terminal Wizard dependencies are ready!")
+
 
 	fmt.Printf("\n%s Login %sCloudflare%s...\n", titlePrefix, bold+yellow, reset)
 	for {
@@ -120,48 +103,60 @@ func main() {
 		cmd.Stdout = &stdoutBuf
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
+
+		fmt.Printf("%s Running 'npx wrangler login'. This may open a browser window.\n", infoPrefix)
+
 		if err := cmd.Start(); err != nil {
-			failMessage("Error starting Cloudflare login", err)
+			failMessage("Error starting Cloudflare login process", err)
 			continue
 		}
 
-		timeout := time.After(40 * time.Second)
+		timeout := time.After(60 * time.Second)
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
 
 		var oauthURL string
-		for {
+		urlFound := false
+		for !urlFound {
 			select {
 			case <-timeout:
 				fmt.Printf("%s Debug: Wrangler output: %s\n", infoPrefix, stdoutBuf.String())
-				failMessage("Timeout waiting for OAuth URL", nil)
+				failMessage("Timeout waiting for Cloudflare login URL. Please try again.", nil)
 				return
 			case <-ticker.C:
 				oauthURL, err = extractOAuthURL(stdoutBuf.String())
 				if err == nil {
+					urlFound = true
 					if err := openURL(oauthURL); err != nil {
 						fmt.Printf("%s Could not open browser automatically.\nPlease open this URL manually: %s%s%s\n", warnPrefix, blue, oauthURL, reset)
 					} else {
 						fmt.Printf("%s Browser opened with URL: %s%s%s\n", infoPrefix, blue, oauthURL, reset)
 					}
-					goto FoundURL
+					time.Sleep(5 * time.Second)
 				}
 			}
 		}
-	FoundURL:
 
 		if err := cmd.Wait(); err != nil {
-			failMessage("Error logging into Cloudflare", err)
+			if strings.Contains(err.Error(), "user aborted") || strings.Contains(err.Error(), "canceled") {
+				failMessage("Cloudflare login was cancelled by the user.", nil)
+				return
+			}
+			failMessage("Error during Cloudflare login process", err)
 			continue
 		}
 
+		fmt.Printf("%s Attempting to disable Wrangler telemetry...\n", infoPrefix)
 		if _, err := runCommand(installDir, "npx wrangler telemetry disable"); err != nil {
-			fmt.Printf("%s Warning: Could not disable telemetry, continuing anyway...\n", warnPrefix)
+			warnMessage("Could not disable telemetry. Continuing anyway.")
+		} else {
+			successMessage("Wrangler telemetry disabled.")
 		}
 
 		successMessage("Cloudflare logged in successfully!")
 		break
 	}
+
 
 	fmt.Printf("\n%s Get Worker settings...\n", titlePrefix)
 
@@ -177,12 +172,14 @@ func main() {
 		successMessage("Using generated worker name.")
 
 		fmt.Printf("\n%s Checking domain availability...\n", titlePrefix)
-		if resp := isWorkerAvailable(installDir, projectName, deployType); resp {
+		if isWorkerAvailable(installDir, projectName, deployType) {
+			warnMessage(fmt.Sprintf("Project name %s is not available. Generating a new one.", projectName))
 			continue
 		}
 		successMessage("Available!")
 		break
 	}
+
 
 	UUID = uuid.NewString()
 	fmt.Printf("\n%s Generated %sUUID%s: %s%s%s\n", infoPrefix, bold+green, reset, cyan, UUID, reset)
@@ -204,8 +201,9 @@ func main() {
 	fmt.Printf("\n%s Generated %sSubscription path%s: %s%s%s\n", infoPrefix, bold+green, reset, cyan, SUB_PATH, reset)
 	successMessage("Using generated Subscription path.")
 
+
 	fmt.Printf("\n%s Downloading %sworker.js%s...\n", titlePrefix, bold+green, reset)
-	if err := os.Mkdir(srsPath, 0750); err != nil {
+	if err := os.MkdirAll(srsPath, 0750); err != nil {
 		failMessage("Could not create src directory", err)
 		return
 	}
@@ -214,46 +212,59 @@ func main() {
 	if deployType == "2" {
 		workerPath = filepath.Join(srsPath, "_worker.js")
 	}
-	for {
+	for attempt := 1; attempt <= 3; attempt++ {
+		fmt.Printf("%s Attempt %d to download worker.js...\n", infoPrefix, attempt)
 		if err := downloadFile(workerURL, workerPath); err != nil {
-			failMessage("Error downloading worker.js", err)
-			continue
+			if attempt < 3 {
+				warnMessage(fmt.Sprintf("Error downloading worker.js on attempt %d: %v. Retrying...", attempt, err))
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			failMessage("Failed to download worker.js after multiple attempts", err)
+			return
 		}
 		successMessage("Worker downloaded successfully!")
 		break
 	}
 
+
 	fmt.Printf("\n%s This program creates a new KV namespace each time it runs.\n   Check your Cloudflare account and delete unused KV namespaces to avoid limits.\n", warnPrefix)
 	fmt.Printf("\n%s Creating KV namespace...\n", titlePrefix)
-	for attempt := 1; attempt <= 3; attempt++ {
+	for attempt := 1; attempt <= 5; attempt++ {
 		kvName := fmt.Sprintf("panel_kv_%s", generateRandomString("abcdefghijklmnopqrstuvwxyz0123456789", 8, false))
+		fmt.Printf("%s Attempt %d to create KV namespace %s...\n", infoPrefix, attempt, kvName)
 		output, err := runCommand(installDir, fmt.Sprintf("npx wrangler kv namespace create %s", kvName))
 		if err != nil {
-			message := fmt.Sprintf("Error creating KV on attempt %d! Output: %s. Check logs at ~/.config/.wrangler/logs/ for details. Ensure Wrangler is version 4.12.0.", attempt, output)
-			if strings.Contains(output, "fetch failed") && attempt < 3 {
-				fmt.Printf("%s Retrying after 5 seconds...\n", infoPrefix)
+			message := fmt.Sprintf("Error creating KV on attempt %d! Output: %s. Check logs at ~/.config/.wrangler/logs/ for details.", attempt, output)
+			if strings.Contains(output, "fetch failed") && attempt < 5 {
+				warnMessage(message + " Retrying after 5 seconds...")
 				time.Sleep(5 * time.Second)
 				continue
 			}
 			failMessage(message, err)
+			if attempt == 5 {
+				return
+			}
 			continue
 		}
 
 		id, err := extractKvID(output)
 		if err != nil {
-			message := fmt.Sprintf("Error getting KV ID! Output: %s. Check logs at ~/.config/.wrangler/logs/ for details. Ensure Wrangler is version 4.12.0.", output)
+			message := fmt.Sprintf("Error getting KV ID from output: %s. Check logs at ~/.config/.wrangler/logs/ for details.", output)
 			failMessage(message, err)
-			continue
+			return
 		}
 
 		kvID = id
+		successMessage("KV created successfully!")
 		break
 	}
+
 	if kvID == "" {
 		failMessage("Failed to create KV namespace after multiple attempts.", nil)
 		return
 	}
-	successMessage("KV created successfully!")
+
 
 	fmt.Printf("\n%s Building panel configuration...\n", titlePrefix)
 	if err := buildWranglerConfig(wranglerConfigPath); err != nil {
@@ -263,40 +274,76 @@ func main() {
 	successMessage("Panel configuration built successfully!")
 
 	var panelURL string
-	for {
-		fmt.Printf("\n%s Deploying %sBPB Panel%s...\n", titlePrefix, bold+blue, reset)
+	for attempt := 1; attempt <= 3; attempt++ {
+		fmt.Printf("\n%s Deploying %sBPB Panel%s (Attempt %d)...\n", titlePrefix, bold+blue, reset, attempt)
+		var output string
+		var err error
+
 		if deployType == "1" {
-			output, err := runCommand(installDir, "npx wrangler deploy ./src/worker.js")
+			output, err = runCommand(installDir, "npx wrangler deploy ./src/worker.js")
 			if err != nil {
-				failMessage(fmt.Sprintf("Error deploying Panel! Output: %s", output), err)
-				continue
+				if attempt < 3 {
+					warnMessage(fmt.Sprintf("Error deploying Panel on attempt %d: %s. Retrying...", attempt, output))
+					time.Sleep(10 * time.Second)
+					continue
+				}
+				failMessage(fmt.Sprintf("Error deploying Panel after multiple attempts! Output: %s", output), err)
+				return
 			}
 
 			successMessage("Panel deployed successfully!")
-			url, err := extractURL(output)
-			if err != nil {
-				failMessage("Error getting URL", err)
+			url, extractErr := extractURL(output)
+			if extractErr != nil {
+				failMessage("Error getting URL from deployment output", extractErr)
 				return
 			}
 			panelURL = url + "/panel"
 			break
 		}
 
-		if _, err := runCommand(installDir, fmt.Sprintf("npx wrangler pages project create %s --production-branch production", projectName)); err != nil {
-			failMessage("Error creating Pages project", err)
-			continue
-		}
+		if deployType == "2" {
+			if attempt == 1 {
+				fmt.Printf("%s Creating Pages project %s...\n", infoPrefix, projectName)
+				createOutput, createErr := runCommand(installDir, fmt.Sprintf("npx wrangler pages project create %s --production-branch production", projectName))
+				if createErr != nil {
+					if strings.Contains(createOutput, "already exists") {
+						warnMessage(fmt.Sprintf("Pages project %s already exists. Skipping creation.", projectName))
+					} else {
+						failMessage(fmt.Sprintf("Error creating Pages project! Output: %s", createOutput), createErr)
+						if attempt < 3 {
+							warnMessage("Retrying deployment...")
+							time.Sleep(5 * time.Second)
+							continue
+						}
+						return
+					}
+				} else {
+					successMessage(fmt.Sprintf("Pages project %s created successfully!", projectName))
+				}
+			}
 
-		_, err := runCommand(installDir, "npx wrangler pages deploy --commit-dirty true --branch production")
-		if err != nil {
-			failMessage("Error deploying Panel", err)
-			continue
+			fmt.Printf("%s Deploying Pages project...\n", infoPrefix)
+			output, err = runCommand(installDir, "npx wrangler pages deploy ./src --commit-dirty true --branch production")
+			if err != nil {
+				if attempt < 3 {
+					warnMessage(fmt.Sprintf("Error deploying Pages on attempt %d: %s. Retrying...", attempt, output))
+					time.Sleep(10 * time.Second)
+					continue
+				}
+				failMessage(fmt.Sprintf("Error deploying Pages after multiple attempts! Output: %s", output), err)
+				return
+			}
+			successMessage("Panel deployed successfully!")
+			panelURL = "https://" + projectName + ".pages.dev/panel"
+			break
 		}
-
-		successMessage("Panel deployed successfully!")
-		panelURL = "https://" + projectName + ".pages.dev/panel"
-		break
 	}
+
+	if panelURL == "" {
+		failMessage("Panel deployment failed after multiple attempts.", nil)
+		return
+	}
+
 
 	fmt.Printf("\n%s Panel installed successfully!\n%s Access it at: %s%s%s\n", successPrefix, infoPrefix, blue, panelURL, reset)
 }
@@ -321,7 +368,10 @@ func runCommand(cmdDir string, command string) (string, error) {
 	cmd.Stderr = &stderrBuf
 	err := cmd.Run()
 	output := stdoutBuf.String() + stderrBuf.String()
-	return output, err
+	if err != nil {
+		return output, fmt.Errorf("command failed: %v, output: %s", err, output)
+	}
+	return output, nil
 }
 
 func isValidDomain(domain string) bool {
@@ -339,9 +389,6 @@ func generateRandomString(charSet string, length int, isDomain bool) string {
 		for {
 			char := charSet[r.Intn(len(charSet))]
 			if isDomain && (i == 0 || i == length-1) && char == byte('-') {
-				continue
-			}
-			if !isDomain && i == 0 && char >= '0' && char <= '9' {
 				continue
 			}
 			randomBytes[i] = char
@@ -369,53 +416,71 @@ func generateSubURIPath(uriLength int) string {
 func isWorkerAvailable(installDir, projectName, deployType string) bool {
 	var command string
 	if deployType == "1" {
-		command = fmt.Sprintf("npx wrangler deployments list --name %s", projectName)
+		command = "npx wrangler worker list"
 	} else {
-		command = fmt.Sprintf("npx wrangler pages deployment list --project-name %s", projectName)
+		command = "npx wrangler pages project list"
 	}
-	_, err := runCommand(installDir, command)
-	return err == nil
+
+	output, err := runCommand(installDir, command)
+	if err != nil {
+		warnMessage(fmt.Sprintf("Could not list Cloudflare projects to check availability: %v. Assuming project name might exist.", err))
+		return true
+	}
+
+	return strings.Contains(output, projectName)
 }
 
+
 func extractURL(output string) (string, error) {
-	re, err := regexp.Compile(`https?://[^\s]+`)
+	re, err := regexp.Compile(`https://[-a-zA-Z0-9]+\.workers\.dev`)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to compile regex: %v", err)
 	}
-	matches := re.FindAllString(output, -1)
-	if len(matches) == 0 {
-		return "", fmt.Errorf("no matches found")
+	match := re.FindString(output)
+	if match == "" {
+		return "", fmt.Errorf("no Cloudflare worker URL found in output")
 	}
-	return matches[len(matches)-1], nil
+	return match, nil
 }
+
 
 func extractOAuthURL(output string) (string, error) {
 	re, err := regexp.Compile(`https://dash\.cloudflare\.com/oauth2/auth\?[^ \n]+`)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to compile regex: %v", err)
 	}
-	matches := re.FindAllString(output, -1)
-	if len(matches) == 0 {
-		return "", fmt.Errorf("no OAuth URL found")
+	matches := re.FindStringSubmatch(output)
+	if len(matches) >= 1 {
+		return matches[0], nil
 	}
-	return matches[0], nil
+	return "", fmt.Errorf("no OAuth URL found")
 }
 
 func openURL(url string) error {
 	var cmd *exec.Cmd
-	if _, err := os.Stat("/data/data/com.termux"); err == nil {
+	if _, err := os.Stat("/data/data/com.termux/files/usr/bin/termux-open-url"); err == nil {
 		cmd = exec.Command("termux-open-url", url)
-		cmd.Env = append(os.Environ(), "TERMUX_API_VERSION=0.50")
 	} else {
-		cmd = exec.Command("xdg-open", url)
+		if runtime.GOOS == "darwin" {
+			cmd = exec.Command("open", url)
+		} else {
+			cmd = exec.Command("xdg-open", url)
+		}
 	}
-	return cmd.Run()
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to open URL: %v", err)
+	}
+	return nil
 }
 
+
 func buildWranglerConfig(filePath string) error {
+	compatibilityDate := "2024-01-01"
+
 	config := map[string]any{
 		"name":                projectName,
-		"compatibility_date":  time.Now().AddDate(0, 0, -1).Format("2006-01-02"),
+		"compatibility_date":  compatibilityDate,
 		"compatibility_flags": []string{"nodejs_compat"},
 		"kv_namespaces": []map[string]string{
 			{
@@ -441,8 +506,10 @@ func buildWranglerConfig(filePath string) error {
 		config["routes"] = []map[string]any{
 			{
 				"route": customDomain,
+				"zone_id": "",
 			},
 		}
+		warnMessage("Custom domain support requires manual input of Zone ID in wrangler.json after deployment.")
 	}
 	jsonData, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
@@ -454,8 +521,9 @@ func buildWranglerConfig(filePath string) error {
 	return nil
 }
 
+
 func extractKvID(output string) (string, error) {
-	re, err := regexp.Compile(`"id":\s*"([^"]+)"`)
+	re, err := regexp.Compile(`"id":\s*"([a-f0-9]{32})"`)
 	if err != nil {
 		return "", fmt.Errorf("failed to compile regex: %v", err)
 	}
@@ -463,25 +531,26 @@ func extractKvID(output string) (string, error) {
 	if len(matches) >= 2 {
 		return matches[1], nil
 	}
-	return "", fmt.Errorf("no valid ID found in output")
+	return "", fmt.Errorf("no valid KV ID found in output: %s", output)
 }
+
 
 func downloadFile(url, dest string) error {
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("error making GET request: %v", err)
+		return fmt.Errorf("error making GET request to %s: %v", url, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download file: %s (HTTP %d)", url, resp.StatusCode)
+		return fmt.Errorf("failed to download file from %s: %s (HTTP %d)", url, resp.Status, resp.StatusCode)
 	}
 	out, err := os.Create(dest)
 	if err != nil {
-		return fmt.Errorf("error creating file: %v", err)
+		return fmt.Errorf("error creating file %s: %v", dest, err)
 	}
 	defer out.Close()
 	if _, err = io.Copy(out, resp.Body); err != nil {
-		return fmt.Errorf("error writing to file: %v", err)
+		return fmt.Errorf("error writing to file %s: %v", dest, err)
 	}
 	return nil
 }
@@ -495,4 +564,8 @@ func failMessage(message string, err error) {
 
 func successMessage(message string) {
 	fmt.Printf("%s %s\n", successPrefix, message)
+}
+
+func warnMessage(message string) {
+	fmt.Printf("%s %s\n", warnPrefix, message)
 }
