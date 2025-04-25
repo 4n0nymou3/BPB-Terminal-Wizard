@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION="1.2"
+
 RESET='\033[0m'
 BOLD='\033[1m'
 BLUE='\033[0;34m'
@@ -11,7 +13,7 @@ BOLD_BLUE='\033[1;34m'
 BOLD_GREEN='\033[1;32m'
 
 echo -e "${BOLD_BLUE}╔═══════════════════════════════════════════${RESET}"
-echo -e "${BOLD_BLUE}║ ${RESET}${BOLD}BPB Terminal Wizard${RESET}"
+echo -e "${BOLD_BLUE}║ ${RESET}${BOLD}BPB Terminal Wizard v${VERSION}${RESET}"
 echo -e "${BOLD_BLUE}║ ${RESET}"
 echo -e "${BOLD_BLUE}║ ${CYAN}A tool to deploy BPB Panel easily${RESET}"
 echo -e "${BOLD_BLUE}║ ${CYAN}Created by ${RESET}${BOLD_GREEN}Anonymous${RESET}${CYAN} with thanks to ${RESET}${BOLD_GREEN}BPB${RESET}"
@@ -27,7 +29,7 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         echo -e "${BLUE}❯ Installing Ubuntu distribution...${RESET}"
         proot-distro install ubuntu
     else
-         echo -e "${GREEN}✓ Ubuntu distribution already installed.${RESET}"
+        echo -e "${GREEN}✓ Ubuntu distribution already installed.${RESET}"
     fi
 
     echo -e "${BLUE}❯ Logging into Ubuntu and setting up dependencies...${RESET}"
@@ -51,8 +53,8 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
                 break
             fi
             if [ \$attempt -eq 3 ]; then
-                 echo -e '${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}'
-                 exit 1
+                echo -e '${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}'
+                exit 1
             fi
             echo -e '${YELLOW}ℹ Retrying npm install in 5 seconds...${RESET}'
             sleep 5
@@ -61,11 +63,84 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         mkdir -p /root/.bpb-terminal-wizard
         cd /root/.bpb-terminal-wizard
         echo -e '${BLUE}❯ Downloading BPB Terminal Wizard...${RESET}'
-        curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard || { echo -e '${RED}✗ Error downloading BPB Terminal Wizard${RESET}'; exit 1; }
+        for attempt in {1..3}; do
+            if curl -L --fail 'https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v${VERSION}/BPB-Terminal-Wizard-linux-arm64' -o BPB-Terminal-Wizard; then
+                echo -e '${GREEN}✓ Download successful.${RESET}'
+                break
+            fi
+            if [ \$attempt -eq 3 ]; then
+                echo -e '${RED}✗ Failed to download BPB Terminal Wizard after 3 attempts.${RESET}'
+                exit 1
+            fi
+            echo -e '${YELLOW}ℹ Retrying download in 5 seconds...${RESET}'
+            sleep 5
+        done
         chmod +x BPB-Terminal-Wizard
         echo -e '${BLUE}❯ Running BPB Terminal Wizard...${RESET}'
         ./BPB-Terminal-Wizard
     "
+elif [ "$(uname -s)" == "Darwin" ]; then
+    echo -e "${YELLOW}ℹ Detected macOS environment. Setting up dependencies...${RESET}"
+    if ! command -v brew >/dev/null 2>&1; then
+        echo -e "${RED}✗ Homebrew is not installed. Please install Homebrew first.${RESET}"
+        exit 1
+    fi
+    brew update
+    brew install node git
+    if ! command -v node >/dev/null 2>&1 || ! node -v | grep -qE 'v18.|v20.|v22.'; then
+        echo -e "${YELLOW}ℹ Node.js not found or version is too old. Installing/Updating Node.js 18...${RESET}"
+        brew install node@18
+        brew link --overwrite node@18
+    fi
+    echo -e "${BLUE}❯ Updating npm...${RESET}"
+    npm install -g npm@latest
+    echo -e "${BLUE}❯ Cleaning npm cache...${RESET}"
+    npm cache clean --force
+    echo -e "${BLUE}❯ Installing Wrangler v4.12.0...${RESET}"
+    for attempt in {1..3}; do
+        echo -e "${YELLOW}ℹ Attempt \$attempt to install Wrangler...${RESET}"
+        if npm install -g wrangler@4.12.0; then
+            echo -e "${GREEN}✓ Wrangler installed successfully.${RESET}"
+            break
+        fi
+        if [ \$attempt -eq 3 ]; then
+            echo -e "${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}"
+            exit 1
+        fi
+        echo -e "${YELLOW}ℹ Retrying npm install in 5 seconds...${RESET}"
+        sleep 5
+    done
+    INSTALL_DIR="$HOME/.bpb-terminal-wizard"
+    BINARY_NAME="BPB-Terminal-Wizard"
+    ARCH_TYPE=$(uname -m)
+    if [ "$ARCH_TYPE" == "x86_64" ]; then
+        ARCH_TYPE="amd64"
+    elif [ "$ARCH_TYPE" == "arm64" ]; then
+        ARCH_TYPE="arm64"
+    else
+        echo -e "${RED}✗ Unsupported architecture: $ARCH_TYPE${RESET}"
+        exit 1
+    fi
+    RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v${VERSION}/BPB-Terminal-Wizard-darwin-${ARCH_TYPE}"
+    echo -e "${BLUE}❯ Preparing BPB Terminal Wizard directory...${RESET}"
+    mkdir -p "$INSTALL_DIR"
+    cd "$INSTALL_DIR" || { echo -e "${RED}✗ Could not change to directory $INSTALL_DIR${RESET}"; exit 1; }
+    echo -e "${BLUE}❯ Downloading $BINARY_NAME for darwin-${ARCH_TYPE}...${RESET}"
+    for attempt in {1..3}; do
+        if curl -L --fail "$RELEASE_URL" -o "$BINARY_NAME"; then
+            echo -e "${GREEN}✓ Download successful.${RESET}"
+            break
+        fi
+        if [ \$attempt -eq 3 ]; then
+            echo -e "${RED}✗ Failed to download $BINARY_NAME after 3 attempts.${RESET}"
+            exit 1
+        fi
+        echo -e "${YELLOW}ℹ Retrying download in 5 seconds...${RESET}"
+        sleep 5
+    done
+    chmod +x "$BINARY_NAME"
+    echo -e "${BLUE}❯ Running BPB Terminal Wizard...${RESET}"
+    ./"$BINARY_NAME"
 else
     OS=$(uname -s)
     ARCH=$(uname -m)
@@ -74,7 +149,6 @@ else
 
     case "$OS" in
       Linux*)  OS_TYPE="linux" ;;
-      Darwin*) OS_TYPE="darwin" ;;
       *)       echo -e "${RED}✗ Unsupported OS: $OS${RESET}"; exit 1 ;;
     esac
     case "$ARCH" in
@@ -87,50 +161,55 @@ else
         echo -e "${YELLOW}ℹ Detected Ubuntu environment. Setting up dependencies...${RESET}"
         apt update && apt upgrade -y
         apt install -y curl wget bash nodejs npm git
-         if ! command -v node >/dev/null 2>&1 || ! node -v | grep -qE 'v18.|v20.|v22.'; then
-            echo -e '${YELLOW}ℹ Node.js not found or version is too old. Installing/Updating Node.js 18...${RESET}'
+        if ! command -v node >/dev/null 2>&1 || ! node -v | grep -qE 'v18.|v20.|v22.'; then
+            echo -e "${YELLOW}ℹ Node.js not found or version is too old. Installing/Updating Node.js 18...${RESET}"
             curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
             apt install -y nodejs
         fi
-        echo -e '${BLUE}❯ Updating npm...${RESET}'
+        echo -e "${BLUE}❯ Updating npm...${RESET}"
         npm install -g npm@latest
-        echo -e '${BLUE}❯ Cleaning npm cache...${RESET}'
+        echo -e "${BLUE}❯ Cleaning npm cache...${RESET}"
         npm cache clean --force
-        echo -e '${BLUE}❯ Installing Wrangler v4.12.0...${RESET}'
-         for attempt in {1..3}; do
+        echo -e "${BLUE}❯ Installing Wrangler v4.12.0...${RESET}"
+        for attempt in {1..3}; do
             echo -e "${YELLOW}ℹ Attempt \$attempt to install Wrangler...${RESET}"
             if npm install -g wrangler@4.12.0; then
-                 echo -e "${GREEN}✓ Wrangler installed successfully.${RESET}"
-                 break
+                echo -e "${GREEN}✓ Wrangler installed successfully.${RESET}"
+                break
             fi
             if [ \$attempt -eq 3 ]; then
-                 echo -e "${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}"
-                 exit 1
+                echo -e "${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}"
+                exit 1
             fi
             echo -e "${YELLOW}ℹ Retrying npm install in 5 seconds...${RESET}"
             sleep 5
         done
-    elif ! command -v node >/dev/null 2>&1 || ! node -v | grep -qE 'v18.|v20.|v22.'; then
-         echo -e "${RED}✗ Node.js v18+ is required. Please install it first.${RESET}"
-         exit 1
-    elif ! command -v npm >/dev/null 2>&1; then
-         echo -e "${RED}✗ npm is required. Please install it first.${RESET}"
-         exit 1
-    elif ! command -v git >/dev/null 2>&1; then
-         echo -e "${RED}✗ git is required. Please install it first.${RESET}"
-         exit 1
+    else
+        echo -e "${RED}✗ This script only supports Ubuntu on Linux. Please install dependencies manually.${RESET}"
+        exit 1
     fi
 
     INSTALL_DIR="$HOME/.bpb-terminal-wizard"
     BINARY_NAME="BPB-Terminal-Wizard"
-    RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v1.1/BPB-Terminal-Wizard-${OS_TYPE}-${ARCH_TYPE}"
+    RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v${VERSION}/BPB-Terminal-Wizard-${OS_TYPE}-${ARCH_TYPE}"
 
     echo -e "${BLUE}❯ Preparing BPB Terminal Wizard directory...${RESET}"
     mkdir -p "$INSTALL_DIR"
     cd "$INSTALL_DIR" || { echo -e "${RED}✗ Could not change to directory $INSTALL_DIR${RESET}"; exit 1; }
 
     echo -e "${BLUE}❯ Downloading $BINARY_NAME for ${OS_TYPE}-${ARCH_TYPE}...${RESET}"
-    curl -L --fail "$RELEASE_URL" -o "$BINARY_NAME" || { echo -e "${RED}✗ Error downloading $BINARY_NAME${RESET}"; exit 1; }
+    for attempt in {1..3}; do
+        if curl -L --fail "$RELEASE_URL" -o "$BINARY_NAME"; then
+            echo -e "${GREEN}✓ Download successful.${RESET}"
+            break
+        fi
+        if [ \$attempt -eq 3 ]; then
+            echo -e "${RED}✗ Failed to download $BINARY_NAME after 3 attempts.${RESET}"
+            exit 1
+        fi
+        echo -e "${YELLOW}ℹ Retrying download in 5 seconds...${RESET}"
+        sleep 5
+    done
     chmod +x "$BINARY_NAME"
 
     echo -e "${BLUE}❯ Running BPB Terminal Wizard...${RESET}"
