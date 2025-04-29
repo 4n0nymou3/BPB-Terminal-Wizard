@@ -75,14 +75,12 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
     echo -e "${YELLOW}ℹ Detected Termux environment. Setting up Ubuntu...${RESET}"
     pkg update -y && pkg upgrade -y
     pkg install termux-tools proot-distro wget curl -y
-
     if ! proot-distro list | grep -q ubuntu; then
         echo -e "${BLUE}❯ Installing Ubuntu distribution...${RESET}"
         proot-distro install ubuntu
     else
         echo -e "${GREEN}✓ Ubuntu distribution already installed.${RESET}"
     fi
-
     echo -e "${BLUE}❯ Logging into Ubuntu and setting up dependencies...${RESET}"
     proot-distro login ubuntu -- bash -c "
         apt update && apt upgrade -y
@@ -99,7 +97,7 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
         if ! check_wrangler_version; then
             echo -e '${BLUE}❯ Installing Wrangler...${RESET}'
             for attempt in {1..3}; do
-                echo -e '${YELLOW}ℹ Attempt \$attempt to install Wrangler...${RESET}'
+                echo -e '${YELLOW}ℹ Attempt $attempt to install Wrangler...${RESET}'
                 if npm install -g wrangler; then
                     echo -e '${GREEN}✓ Wrangler installed successfully.${RESET}'
                     break
@@ -160,7 +158,7 @@ elif [ "$(uname -s)" == "Darwin" ]; then
                 echo -e "${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}"
                 exit 1
             fi
-            echo -e "${YELLOW}ℹ Ret tools for deploying BPB Panel...${RESET}"
+            echo -e "${YELLOW}ℹ Retrying npm install in 5 seconds...${RESET}"
             sleep 5
         done
     fi
@@ -200,7 +198,6 @@ else
     ARCH=$(uname -m)
     OS_TYPE=""
     ARCH_TYPE=""
-
     case "$OS" in
       Linux*)  OS_TYPE="linux" ;;
       *)       echo -e "${RED}✗ Unsupported OS: $OS${RESET}"; exit 1 ;;
@@ -210,7 +207,6 @@ else
       arm64|aarch64) ARCH_TYPE="arm64" ;;
       *)       echo -e "${RED}✗ Unsupported architecture: $ARCH${RESET}"; exit 1 ;;
     esac
-
     if [ "$OS_TYPE" == "linux" ] && [ -f "/etc/os-release" ] && grep -q "Ubuntu" /etc/os-release; then
         echo -e "${YELLOW}ℹ Detected Ubuntu environment. Setting up dependencies...${RESET}"
         apt update && apt upgrade -y
@@ -244,15 +240,12 @@ else
         echo -e "${RED}✗ This script only supports Ubuntu on Linux. Please install dependencies manually.${RESET}"
         exit 1
     fi
-
     INSTALL_DIR="$HOME/.bpb-terminal-wizard"
     BINARY_NAME="BPB-Terminal-Wizard"
     RELEASE_URL="https://github.com/4n0nymou3/BPB-Terminal-Wizard/releases/download/v${VERSION}/BPB-Terminal-Wizard-${OS_TYPE}-${ARCH_TYPE}"
-
     echo -e "${BLUE}❯ Preparing BPB Terminal Wizard directory...${RESET}"
     mkdir -p "$INSTALL_DIR"
     cd "$INSTALL_DIR" || { echo -e "${RED}✗ Could not change to directory $INSTALL_DIR${RESET}"; exit 1; }
-
     echo -e "${BLUE}❯ Downloading $BINARY_NAME for ${OS_TYPE}-${ARCH_TYPE}...${RESET}"
     for attempt in {1..3}; do
         if curl -L --fail "$RELEASE_URL" -o "$BINARY_NAME"; then
@@ -267,7 +260,6 @@ else
         sleep 5
     done
     chmod +x "$BINARY_NAME"
-
     echo -e "${BLUE}❯ Running BPB Terminal Wizard...${RESET}"
     ./"$BINARY_NAME"
 fi
