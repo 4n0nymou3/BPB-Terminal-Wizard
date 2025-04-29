@@ -13,6 +13,7 @@ import (
     "os/exec"
     "path/filepath"
     "regexp"
+    "strconv"
     "strings"
     "time"
 
@@ -89,25 +90,26 @@ func main() {
     fmt.Printf("\n%s Installing %sBPB Terminal Wizard%s...\n", titlePrefix, bold+blue, reset)
 
     if err := checkNode(); err != nil {
-        failMessage("Node.js is not installed or outdated. Please install Node.js 18 or higher.", err)
+        failMessage("Node.js is not installed or version is too old. Please ensure Node.js v18 or higher is installed.", err)
+        return
+    }
+
+    if err := checkNpm(); err != nil {
+        failMessage("npm is not installed or not working. Please ensure npm is installed.", err)
         return
     }
 
     fmt.Printf("%s Installing Wrangler...\n", infoPrefix)
+    if err := checkWrangler(); err != nil {
+        failMessage("Wrangler is not installed or not working. Please ensure Wrangler is installed.", err)
+        return
+    }
     if _, err := runCommand(installDir, "npm cache clean --force", 1); err != nil {
         fmt.Printf("%s Warning: Could not clean npm cache, continuing anyway...\n", warnPrefix)
     }
-    if _, err := runCommand(installDir, "npm uninstall -g wrangler", 1); err != nil {
-        fmt.Printf("%s Warning: Could not uninstall old Wrangler, continuing anyway...\n", warnPrefix)
-    }
-    output, err := runCommand(installDir, "npm install -g wrangler@4.12.0", 3)
+    output, err := runCommand(installDir, "npx wrangler --version", 1)
     if err != nil {
-        failMessage("Error installing Wrangler", fmt.Errorf("output: %s, error: %v", output, err))
-        return
-    }
-    output, err = runCommand(installDir, "npx wrangler --version", 1)
-    if err != nil || !strings.Contains(output, "4.12.0") {
-        failMessage("Failed to verify Wrangler version 4.12.0", fmt.Errorf("output: %s, error: %v", output, err))
+        failMessage("Failed to verify Wrangler installation", fmt.Errorf("output: %s, error: %v", output, err))
         return
     }
 
@@ -236,7 +238,7 @@ func main() {
         kvName := fmt.Sprintf("panel_kv_%s", generateRandomString("abcdefghijklmnopqrstuvwxyz0123456789", 8, false))
         output, err := runCommand(installDir, fmt.Sprintf("npx wrangler kv namespace create %s", kvName), 3)
         if err != nil {
-            message := fmt.Sprintf("Error creating KV on attempt %d! Output: %s. Check logs at ~/.config/.wrangler/logs/ for details. Ensure Wrangler is version 4.12.0.", attempt, output)
+            message := fmt.Sprintf("Error creating KV on attempt %d! Output: %s. Check logs at ~/.config/.wrangler/logs/ for details.", attempt, output)
             if strings.Contains(output, "fetch failed") && attempt < 3 {
                 fmt.Printf("%s Retrying after 5 seconds...\n", infoPrefix)
                 time.Sleep(5 * time.Second)
@@ -248,7 +250,7 @@ func main() {
 
         id, err := extractKvID(output)
         if err != nil {
-            message := fmt.Sprintf("Error getting KV ID! Output: %s. Check logs at ~/.config/.wrangler/logs/ for details. Ensure Wrangler is version 4.12.0.", output)
+            message := fmt.Sprintf("Error getting KV ID! Output: %s. Check logs at ~/.config/.wrangler/logs/ for details.", output)
             failMessage(message, err)
             continue
         }
@@ -330,9 +332,33 @@ func checkNode() error {
     if err != nil {
         return fmt.Errorf("Node.js is not installed or not working: %v", err)
     }
-    version := strings.TrimSpace(string(output))
-    if !strings.HasPrefix(version, "v18") && !strings.HasPrefix(version, "v20") && !strings.HasPrefix(version, "v22") {
-        return fmt.Errorf("Node.js version %s is outdated; please upgrade to 18.x or higher", version)
+    version := strings.TrimPrefix(string(output), "v")
+    versionParts := strings.Split(version, ".")
+    if len(versionParts) < 1 {
+        return fmt.Errorf("invalid Node.js version format: %s", version)
+    }
+    major, err := strconv.Atoi(versionParts[0])
+    if err != nil {
+        return fmt.Errorf("cannot parse Node.js major version: %v", err)
+    }
+    if major < 18 {
+        return fmt.Errorf("Node.js version %s is too old, requires v18 or higher", version)
+    }
+    return nil
+}
+
+func checkNpm() error {
+    _, err := exec.Command("npm", "-v").Output()
+    if err != nil {
+        return fmt.Errorf("npm is not installed or not working: %v", err)
+    }
+    return nil
+}
+
+func checkWrangler() error {
+    _, err := exec.Command("npx", "wrangler", "--version").Output()
+    if err != nil {
+        return fmt.Errorf("Wrangler is not installed or not working: %v", err)
     }
     return nil
 }
