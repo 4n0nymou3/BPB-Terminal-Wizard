@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.2"
+VERSION="1.3"
 
 RESET='\033[0m'
 BOLD='\033[1m'
@@ -20,6 +20,57 @@ echo -e "${BOLD_BLUE}║ ${CYAN}Created by ${RESET}${BOLD_GREEN}Anonymous${RESET
 echo -e "${BOLD_BLUE}╚═══════════════════════════════════════════${RESET}"
 echo ""
 
+check_node_version() {
+    if command -v node >/dev/null 2>&1; then
+        NODE_VERSION=$(node -v | cut -d'v' -f2)
+        NODE_MAJOR=$(echo "$NODE_VERSION" | cut -d'.' -f1)
+        if [ "$NODE_MAJOR" -lt 18 ]; then
+            echo -e "${YELLOW}ℹ Node.js version $NODE_VERSION is too old. Installing latest Node.js...${RESET}"
+            return 1
+        else
+            echo -e "${GREEN}✓ Node.js version $NODE_VERSION is compatible.${RESET}"
+            return 0
+        fi
+    else
+        echo -e "${YELLOW}ℹ Node.js not found. Installing latest Node.js...${RESET}"
+        return 1
+    fi
+}
+
+check_npm_version() {
+    if command -v npm >/dev/null 2>&1; then
+        NPM_VERSION=$(npm -v)
+        LATEST_NPM=$(npm view npm version)
+        if [ "$NPM_VERSION" != "$LATEST_NPM" ]; then
+            echo -e "${YELLOW}ℹ npm version $NPM_VERSION is outdated. Installing latest npm...${RESET}"
+            return 1
+        else
+            echo -e "${GREEN}✓ npm version $NPM_VERSION is up-to-date.${RESET}"
+            return 0
+        fi
+    else
+        echo -e "${YELLOW}ℹ npm not found. Installing latest npm...${RESET}"
+        return 1
+    fi
+}
+
+check_wrangler_version() {
+    if command -v wrangler >/dev/null 2>&1; then
+        WRANGLER_VERSION=$(npx wrangler --version)
+        LATEST_WRANGLER=$(npm view wrangler version)
+        if [ "$WRANGLER_VERSION" != "$LATEST_WRANGLER" ]; then
+            echo -e "${YELLOW}ℹ Wrangler version $WRANGLER_VERSION is outdated. Installing latest Wrangler...${RESET}"
+            return 1
+        else
+            echo -e "${GREEN}✓ Wrangler version $WRANGLER_VERSION is up-to-date.${RESET}"
+            return 0
+        fi
+    else
+        echo -e "${YELLOW}ℹ Wrangler not found. Installing latest Wrangler...${RESET}"
+        return 1
+    fi
+}
+
 if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
     echo -e "${YELLOW}ℹ Detected Termux environment. Setting up Ubuntu...${RESET}"
     pkg update -y && pkg upgrade -y
@@ -35,30 +86,32 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
     echo -e "${BLUE}❯ Logging into Ubuntu and setting up dependencies...${RESET}"
     proot-distro login ubuntu -- bash -c "
         apt update && apt upgrade -y
-        apt install -y curl wget bash nodejs npm git
-        if ! command -v node >/dev/null 2>&1 || ! node -v | grep -qE 'v18.|v20.|v22.'; then
-            echo -e '${YELLOW}ℹ Node.js not found or version is too old. Installing/Updating Node.js 18...${RESET}'
-            curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+        apt install -y curl wget bash npm git
+        if ! check_node_version; then
+            curl -fsSL https://deb.nodesource.com/setup_current.x | bash -
             apt install -y nodejs
         fi
-        echo -e '${BLUE}❯ Updating npm...${RESET}'
-        npm install -g npm@latest
+        if ! check_npm_version; then
+            npm install -g npm@latest
+        fi
         echo -e '${BLUE}❯ Cleaning npm cache...${RESET}'
         npm cache clean --force
-        echo -e '${BLUE}❯ Installing Wrangler v4.12.0...${RESET}'
-        for attempt in {1..3}; do
-            echo -e '${YELLOW}ℹ Attempt \$attempt to install Wrangler...${RESET}'
-            if npm install -g wrangler@4.12.0; then
-                echo -e '${GREEN}✓ Wrangler installed successfully.${RESET}'
-                break
-            fi
-            if [ \$attempt -eq 3 ]; then
-                echo -e '${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}'
-                exit 1
-            fi
-            echo -e '${YELLOW}ℹ Retrying npm install in 5 seconds...${RESET}'
-            sleep 5
-        done
+        if ! check_wrangler_version; then
+            echo -e '${BLUE}❯ Installing Wrangler...${RESET}'
+            for attempt in {1..3}; do
+                echo -e '${YELLOW}ℹ Attempt \$attempt to install Wrangler...${RESET}'
+                if npm install -g wrangler; then
+                    echo -e '${GREEN}✓ Wrangler installed successfully.${RESET}'
+                    break
+                fi
+                if [ \$attempt -eq 3 ]; then
+                    echo -e '${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}'
+                    exit 1
+                fi
+                echo -e '${YELLOW}ℹ Retrying npm install in 5 seconds...${RESET}'
+                sleep 5
+            done
+        fi
         echo -e '${BLUE}❯ Preparing BPB Terminal Wizard directory...${RESET}'
         mkdir -p /root/.bpb-terminal-wizard
         cd /root/.bpb-terminal-wizard
@@ -86,30 +139,31 @@ elif [ "$(uname -s)" == "Darwin" ]; then
         exit 1
     fi
     brew update
-    brew install node git
-    if ! command -v node >/dev/null 2>&1 || ! node -v | grep -qE 'v18.|v20.|v22.'; then
-        echo -e "${YELLOW}ℹ Node.js not found or version is too old. Installing/Updating Node.js 18...${RESET}"
-        brew install node@18
-        brew link --overwrite node@18
+    if ! check_node_version; then
+        brew install node
     fi
-    echo -e "${BLUE}❯ Updating npm...${RESET}"
-    npm install -g npm@latest
+    brew install git
+    if ! check_npm_version; then
+        npm install -g npm@latest
+    fi
     echo -e "${BLUE}❯ Cleaning npm cache...${RESET}"
     npm cache clean --force
-    echo -e "${BLUE}❯ Installing Wrangler v4.12.0...${RESET}"
-    for attempt in {1..3}; do
-        echo -e "${YELLOW}ℹ Attempt \$attempt to install Wrangler...${RESET}"
-        if npm install -g wrangler@4.12.0; then
-            echo -e "${GREEN}✓ Wrangler installed successfully.${RESET}"
-            break
-        fi
-        if [ \$attempt -eq 3 ]; then
-            echo -e "${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}"
-            exit 1
-        fi
-        echo -e "${YELLOW}ℹ Retrying npm install in 5 seconds...${RESET}"
-        sleep 5
-    done
+    if ! check_wrangler_version; then
+        echo -e "${BLUE}❯ Installing Wrangler...${RESET}"
+        for attempt in {1..3}; do
+            echo -e "${YELLOW}ℹ Attempt $attempt to install Wrangler...${RESET}"
+            if npm install -g wrangler; then
+                echo -e "${GREEN}✓ Wrangler installed successfully.${RESET}"
+                break
+            fi
+            if [ $attempt -eq 3 ]; then
+                echo -e "${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}"
+                exit 1
+            fi
+            echo -e "${YELLOW}ℹ Ret tools for deploying BPB Panel...${RESET}"
+            sleep 5
+        done
+    fi
     INSTALL_DIR="$HOME/.bpb-terminal-wizard"
     BINARY_NAME="BPB-Terminal-Wizard"
     ARCH_TYPE=$(uname -m)
@@ -131,7 +185,7 @@ elif [ "$(uname -s)" == "Darwin" ]; then
             echo -e "${GREEN}✓ Download successful.${RESET}"
             break
         fi
-        if [ \$attempt -eq 3 ]; then
+        if [ $attempt -eq 3 ]; then
             echo -e "${RED}✗ Failed to download $BINARY_NAME after 3 attempts.${RESET}"
             exit 1
         fi
@@ -160,30 +214,32 @@ else
     if [ "$OS_TYPE" == "linux" ] && [ -f "/etc/os-release" ] && grep -q "Ubuntu" /etc/os-release; then
         echo -e "${YELLOW}ℹ Detected Ubuntu environment. Setting up dependencies...${RESET}"
         apt update && apt upgrade -y
-        apt install -y curl wget bash nodejs npm git
-        if ! command -v node >/dev/null 2>&1 || ! node -v | grep -qE 'v18.|v20.|v22.'; then
-            echo -e "${YELLOW}ℹ Node.js not found or version is too old. Installing/Updating Node.js 18...${RESET}"
-            curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+        apt install -y curl wget bash npm git
+        if ! check_node_version; then
+            curl -fsSL https://deb.nodesource.com/setup_current.x | bash -
             apt install -y nodejs
         fi
-        echo -e "${BLUE}❯ Updating npm...${RESET}"
-        npm install -g npm@latest
+        if ! check_npm_version; then
+            npm install -g npm@latest
+        fi
         echo -e "${BLUE}❯ Cleaning npm cache...${RESET}"
         npm cache clean --force
-        echo -e "${BLUE}❯ Installing Wrangler v4.12.0...${RESET}"
-        for attempt in {1..3}; do
-            echo -e "${YELLOW}ℹ Attempt \$attempt to install Wrangler...${RESET}"
-            if npm install -g wrangler@4.12.0; then
-                echo -e "${GREEN}✓ Wrangler installed successfully.${RESET}"
-                break
-            fi
-            if [ \$attempt -eq 3 ]; then
-                echo -e "${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}"
-                exit 1
-            fi
-            echo -e "${YELLOW}ℹ Retrying npm install in 5 seconds...${RESET}"
-            sleep 5
-        done
+        if ! check_wrangler_version; then
+            echo -e "${BLUE}❯ Installing Wrangler...${RESET}"
+            for attempt in {1..3}; do
+                echo -e "${YELLOW}ℹ Attempt $attempt to install Wrangler...${RESET}"
+                if npm install -g wrangler; then
+                    echo -e "${GREEN}✓ Wrangler installed successfully.${RESET}"
+                    break
+                fi
+                if [ $attempt -eq 3 ]; then
+                    echo -e "${RED}✗ Failed to install Wrangler after 3 attempts.${RESET}"
+                    exit 1
+                fi
+                echo -e "${YELLOW}ℹ Retrying npm install in 5 seconds...${RESET}"
+                sleep 5
+            done
+        fi
     else
         echo -e "${RED}✗ This script only supports Ubuntu on Linux. Please install dependencies manually.${RESET}"
         exit 1
@@ -203,7 +259,7 @@ else
             echo -e "${GREEN}✓ Download successful.${RESET}"
             break
         fi
-        if [ \$attempt -eq 3 ]; then
+        if [ $attempt -eq 3 ]; then
             echo -e "${RED}✗ Failed to download $BINARY_NAME after 3 attempts.${RESET}"
             exit 1
         fi
