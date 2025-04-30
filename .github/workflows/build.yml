@@ -1,7 +1,7 @@
 name: Build BPB-Terminal-Wizard
 
 env:
-  RELEASE_VERSION: v1.4
+  RELEASE_VERSION: v1.3
 
 permissions:
   contents: write
