@@ -2,7 +2,7 @@
 
 set -e
 
-VERSION="1.3"
+VERSION="1.4"
 
 RESET='\033[0m'
 BOLD='\033[1m'
