@@ -20,6 +20,55 @@ echo -e "${BOLD_BLUE}║ ${CYAN}Created by ${RESET}${BOLD_GREEN}Anonymous${RESET
 echo -e "${BOLD_BLUE}╚═══════════════════════════════════════════${RESET}"
 echo ""
 
+check_node_version() {
+    if command -v node >/dev/null 2>&1; then
+        NODE_VERSION=$(node -v | cut -d'v' -f2)
+        NODE_MAJOR=$(echo "$NODE_VERSION" | cut -d'.' -f1)
+        if [ "$NODE_MAJOR" -lt 20 ]; then
+            echo -e "${YELLOW}ℹ Node.js version $NODE_VERSION is too old. Installing latest Node.js...${RESET}"
+            return 1
+        else
+            echo -e "${GREEN}✓ Node.js version $NODE_VERSION is compatible.${RESET}"
+            return 0
+        fi
+    else
+        echo -e "${YELLOW}ℹ Node.js not found. Installing latest Node.js...${RESET}"
+        return 1
+    fi
+}
+check_npm_version() {
+    if command -v npm >/dev/null 2>&1; then
+        NPM_VERSION=$(npm -v)
+        LATEST_NPM=$(npm view npm version)
+        if [ "$NPM_VERSION" != "$LATEST_NPM" ]; then
+            echo -e "${YELLOW}ℹ npm version $NPM_VERSION is outdated. Installing latest npm...${RESET}"
+            return 1
+        else
+            echo -e "${GREEN}✓ npm version $NPM_VERSION is up-to-date.${RESET}"
+            return 0
+        fi
+    else
+        echo -e "${YELLOW}ℹ npm not found. Installing latest npm...${RESET}"
+        return 1
+    fi
+}
+check_wrangler_version() {
+    if command -v wrangler >/dev/null 2>&1; then
+        WRANGLER_VERSION=$(npx wrangler --version)
+        LATEST_WRANGLER=$(npm view wrangler version)
+        if [ "$WRANGLER_VERSION" != "$LATEST_WRANGLER" ]; then
+            echo -e "${YELLOW}ℹ Wrangler version $WRANGLER_VERSION is outdated. Installing latest Wrangler...${RESET}"
+            return 1
+        else
+            echo -e "${GREEN}✓ Wrangler version $WRANGLER_VERSION is up-to-date.${RESET}"
+            return 0
+        fi
+    else
+        echo -e "${YELLOW}ℹ Wrangler not found. Installing latest Wrangler...${RESET}"
+        return 1
+    fi
+}
+
 if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
     echo -e "${YELLOW}ℹ Detected Termux environment. Setting up Ubuntu...${RESET}"
     pkg update -y && pkg upgrade -y
@@ -36,7 +85,7 @@ if [ -d "/data/data/com.termux" ] && [ ! -f "/etc/os-release" ]; then
             if command -v node >/dev/null 2>&1; then
                 NODE_VERSION=\$(node -v | cut -d'v' -f2)
                 NODE_MAJOR=\$(echo \"\$NODE_VERSION\" | cut -d'.' -f1)
-                if [ \"\$NODE_MAJOR\" -lt 18 ]; then
+                if [ \"\$NODE_MAJOR\" -lt 20 ]; then
                     echo -e \"${YELLOW}ℹ Node.js version \$NODE_VERSION is too old. Installing latest Node.js...${RESET}\"
                     return 1
                 else
